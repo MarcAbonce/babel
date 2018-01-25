@@ -931,6 +931,15 @@ class Locale(object):
         """
         return self._data['unit_display_names']
 
+    @property
+    def seed(self):
+        """True if locale is part of CLDR's seed repository.
+
+        .. note:: The format of the value returned may change between
+                  Babel versions.
+        """
+        return self._data.get('seed', False)
+
 
 def default_locale(category=None, aliases=LOCALE_ALIASES):
     """Returns the system default locale for a given category, based on

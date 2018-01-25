@@ -77,16 +77,20 @@ def error(message, *args):
 def need_conversion(dst_filename, data_dict, source_filename):
     with open(source_filename, 'rb') as f:
         blob = f.read(4096)
-        version = int(re.search(b'version number="\\$Revision: (\\d+)',
-                                blob).group(1))
+        matches = re.search(b'version number="\\$Revision: (\\d+)', blob)
+        if matches:
+            latest_version = int(matches.group(1))
+        else:
+            latest_version = None
 
-    data_dict['_version'] = version
+    data_dict['_version'] = latest_version
     if not os.path.isfile(dst_filename):
         return True
 
     with open(dst_filename, 'rb') as f:
         data = pickle.load(f)
-        return data.get('_version') != version
+        current_version = data.get('_version')
+        return current_version is None or current_version != latest_version
 
 
 def _translate_alias(ctxt, path):
@@ -193,14 +197,15 @@ def main():
 
 
 def process_data(srcdir, destdir, force=False, dump_json=False):
-    sup_filename = os.path.join(srcdir, 'supplemental', 'supplementalData.xml')
+    common_dir = os.path.join(srcdir, 'common')
+    sup_filename = os.path.join(common_dir, 'supplemental', 'supplementalData.xml')
     sup = parse(sup_filename)
 
     # Import global data from the supplemental files
     global_path = os.path.join(destdir, 'global.dat')
     global_data = {}
     if force or need_conversion(global_path, global_data, sup_filename):
-        global_data.update(parse_global(srcdir, sup))
+        global_data.update(parse_global(common_dir, sup))
         write_datafile(global_path, global_data, dump_json=dump_json)
     _process_local_datas(sup, srcdir, destdir, force=force, dump_json=dump_json)
 
@@ -329,7 +334,8 @@ def parse_global(srcdir, sup):
 
 
 def _process_local_datas(sup, srcdir, destdir, force=False, dump_json=False):
-    day_period_rules = parse_day_period_rules(parse(os.path.join(srcdir, 'supplemental', 'dayPeriods.xml')))
+    common_dir = os.path.join(srcdir, 'common')
+    day_period_rules = parse_day_period_rules(parse(os.path.join(common_dir, 'supplemental', 'dayPeriods.xml')))
     # build a territory containment mapping for inheritance
     regions = {}
     for elem in sup.findall('.//territoryContainment/group'):
@@ -346,23 +352,32 @@ def _process_local_datas(sup, srcdir, destdir, force=False, dump_json=False):
             containers.add(group)
 
     # prepare the per-locale plural rules definitions
-    plural_rules = _extract_plural_rules(os.path.join(srcdir, 'supplemental', 'plurals.xml'))
-    ordinal_rules = _extract_plural_rules(os.path.join(srcdir, 'supplemental', 'ordinals.xml'))
+    plural_rules = _extract_plural_rules(os.path.join(common_dir, 'supplemental', 'plurals.xml'))
+    ordinal_rules = _extract_plural_rules(os.path.join(common_dir, 'supplemental', 'ordinals.xml'))
 
-    filenames = os.listdir(os.path.join(srcdir, 'main'))
+    main_dir = os.path.join(srcdir, 'common', 'main')
+    seed_dir = os.path.join(srcdir, 'seed', 'main')
+
+    filenames = os.listdir(main_dir)
+    if os.path.exists(seed_dir):
+        filenames += os.listdir(seed_dir)
     filenames.remove('root.xml')
     filenames.sort(key=len)
     filenames.insert(0, 'root.xml')
 
     for filename in filenames:
         stem, ext = os.path.splitext(filename)
-        if ext != '.xml':
+        if ext != '.xml' or stem.startswith('und') or stem.endswith('_ZZ'):
             continue
 
-        full_filename = os.path.join(srcdir, 'main', filename)
-        data_filename = os.path.join(destdir, 'locale-data', stem + '.dat')
-
         data = {}
+
+        full_filename = os.path.join(main_dir, filename)
+        if not os.path.exists(full_filename):
+            full_filename = os.path.join(seed_dir, filename)
+            data['seed'] = True
+
+        data_filename = os.path.join(destdir, 'locale-data', stem + '.dat')
         if not (force or need_conversion(data_filename, data, full_filename)):
             continue
 
@@ -692,9 +707,12 @@ def parse_calendar_datetime_skeletons(data, calendar):
                 )
             elif elem.tag == 'availableFormats':
                 for datetime_skeleton in elem.findall('dateFormatItem'):
-                    datetime_skeletons[datetime_skeleton.attrib['id']] = (
-                        dates.parse_pattern(text_type(datetime_skeleton.text))
-                    )
+                    try:
+                        datetime_skeletons[datetime_skeleton.attrib['id']] = (
+                            dates.parse_pattern(text_type(datetime_skeleton.text))
+                        )
+                    except ValueError as e:
+                        error(e)
 
 
 def parse_number_symbols(data, tree):
@@ -716,7 +734,12 @@ def parse_decimal_formats(data, tree):
             continue
         for pattern_el in elem.findall('./decimalFormat/pattern'):
             pattern_type = pattern_el.attrib.get('type')
-            pattern = numbers.parse_pattern(text_type(pattern_el.text))
+            try:
+                pattern = numbers.parse_pattern(text_type(pattern_el.text))
+            except ValueError as e:
+                error(e)
+                continue
+
             if pattern_type:
                 # This is a compact decimal format, see:
                 # http://www.unicode.org/reports/tr35/tr35-45/tr35-numbers.html#Compact_Number_Formats
@@ -741,7 +764,10 @@ def parse_scientific_formats(data, tree):
         if _should_skip_elem(elem, type, scientific_formats):
             continue
         pattern = text_type(elem.findtext('scientificFormat/pattern'))
-        scientific_formats[type] = numbers.parse_pattern(pattern)
+        try:
+            scientific_formats[type] = numbers.parse_pattern(pattern)
+        except ValueError as e:
+            error(e)
 
 
 def parse_percent_formats(data, tree):
@@ -751,7 +777,10 @@ def parse_percent_formats(data, tree):
         if _should_skip_elem(elem, type, percent_formats):
             continue
         pattern = text_type(elem.findtext('percentFormat/pattern'))
-        percent_formats[type] = numbers.parse_pattern(pattern)
+        try:
+            percent_formats[type] = numbers.parse_pattern(pattern)
+        except ValueError as e:
+            error(e)
 
 
 def parse_currency_names(data, tree):
@@ -851,7 +880,10 @@ def parse_currency_formats(data, tree):
                     )
                 elif child.tag == 'pattern':
                     pattern = text_type(child.text)
-                    currency_formats[type] = numbers.parse_pattern(pattern)
+                    try:
+                        currency_formats[type] = numbers.parse_pattern(pattern)
+                    except ValueError as e:
+                        error(e)
 
 
 def parse_day_period_rules(tree):

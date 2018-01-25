@@ -247,6 +247,12 @@ class TestLocaleClass:
         assert Locale('fr').plural_form(0) == 'one'
         assert Locale('ru').plural_form(100) == 'many'
 
+    def test_seed_property(self):
+        # If en_Dsrt is ever moved to the main CLDR repository,
+        # this assertion will need to be replaced with a different locale
+        assert Locale('en_Dsrt').seed
+        assert not Locale('en').seed
+
 
 def test_default_locale(os_environ):
     for name in ['LANGUAGE', 'LC_ALL', 'LC_CTYPE', 'LC_MESSAGES']:

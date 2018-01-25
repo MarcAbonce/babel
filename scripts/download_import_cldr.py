@@ -12,11 +12,19 @@ try:
 except ImportError:
     from urllib import urlretrieve
 
+try:
+    from xml.etree import cElementTree as ElementTree
+except ImportError:
+    from xml.etree import ElementTree
 
-URL = 'http://www.unicode.org/Public/cldr/31.0.1/core.zip'
+
+URL = 'https://www.unicode.org/Public/cldr/31.0.1/core.zip'
 FILENAME = 'core-31.0.1.zip'
 FILESUM = '01ade6c2d1f358e63c2ab6e2861d4caa7114ff45'
 BLKSIZE = 131072
+
+SEED_URL = 'https://www.unicode.org/repos/cldr/tags/release-31-0-1/seed/main/'
+SEED_FILENAME = 'seed-31.0.1.html'
 
 
 def get_terminal_width():
@@ -47,6 +55,29 @@ def log(message, *args):
     if args:
         message = message % args
     sys.stderr.write(message + '\n')
+
+
+def get_seed_files(download_path, cldr_path):
+    seed_path = os.path.join(cldr_path, 'seed', 'main')
+    if not os.path.exists(seed_path):
+        os.makedirs(seed_path)
+
+    html_path = os.path.join(download_path, SEED_FILENAME)
+    if not os.path.exists(html_path):
+        log('Downloading seed repo')
+        urlretrieve(SEED_URL, html_path)
+
+    html = ElementTree.parse(html_path)
+    file_links = html.findall('./body/ul/li/a')
+    seed_xmls = [link.text for link in file_links if 'xml' in link.text]
+
+    for xml_name in seed_xmls:
+        xml_url = SEED_URL + xml_name
+        xml_path = os.path.join(seed_path, xml_name)
+
+        if not os.path.exists(xml_path):
+            log('Downloading \'%s\'', xml_name)
+            urlretrieve(xml_url, xml_path)
 
 
 def is_good_file(filename):
@@ -94,10 +125,12 @@ def main():
         with contextlib.closing(zipfile.ZipFile(zip_path)) as z:
             z.extractall(cldr_path)
 
+    get_seed_files(cldr_dl_path, cldr_path)
+
     subprocess.check_call([
         sys.executable,
         os.path.join(scripts_path, 'import_cldr.py'),
-        common_path])
+        cldr_path])
 
 
 if __name__ == '__main__':
