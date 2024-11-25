@@ -412,15 +412,30 @@ class Locale:
 
         # If we did not find anything so far, try again with a
         # simplified identifier that is just the language
-        likely_subtag = get_global('likely_subtags').get(language)
-        if likely_subtag is not None:
-            parts2 = parse_locale(likely_subtag)
+        likely_subtag2 = get_global('likely_subtags').get(language)
+        if likely_subtag2 is not None:
+            parts2 = parse_locale(likely_subtag2)
             if len(parts2) == 5:
                 language2, _, script2, variant2, modifier2 = parts2
             else:
                 language2, _, script2, variant2 = parts2
                 modifier2 = None
             locale = _try_load_reducing((language2, territory, script2, variant2, modifier2))
+            if locale is not None:
+                return locale
+
+        # If locale doesn't have data but exists in likely_subtags,
+        # try to fallback to the territory's and script's likely locale
+        likely_subtag = likely_subtag or likely_subtag2
+        if likely_subtag is not None:
+            parts3 = parse_locale(likely_subtag)
+            if len(parts3) == 5:
+                _, territory3, script3, variant3, modifier3 = parts3
+            else:
+                _, territory3, script3, variant3 = parts3
+                modifier3 = None
+            fallback_id = get_locale_identifier(('und', territory3, script3, variant3, modifier3))
+            locale = cls.parse(fallback_id)
             if locale is not None:
                 return locale
 
