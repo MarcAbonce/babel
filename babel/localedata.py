@@ -204,6 +204,38 @@ def merge(dict1: MutableMapping[Any, Any], dict2: Mapping[Any, Any]) -> None:
             dict1[key] = val1
 
 
+def build_locale_from_fallback(locale_id: str, fallback_locale_id: str):
+    """Add a new locale to localedata.
+
+    This function is meant for locales currently have no data in the
+    Common Locale Data Respository (CLDR).
+
+    This allows these locales to be partially supported by inheriting most
+    of the data from a CLDR supported fallback locale.
+
+    :param locale_id: an ISO 639 code for the locale that will be built
+    :param fallback_locale_id: a locale defined in the CLDR that the new locale
+                               will inherit from
+    :raise `IOError`: if fallback_locale_id has no data file
+    """
+
+    locale_data = {
+        'locale_id': locale_id,
+        # TODO: add language name too
+        # 'languages': { locale_id: 'Locale name' }
+    }
+
+    if fallback_locale_id not in _cache:
+        load(fallback_locale_id)
+
+    _cache_lock.acquire()
+    try:
+        merge(locale_data, _cache[fallback_locale_id])
+        _cache[locale_id] = locale_data
+    finally:
+        _cache_lock.release()
+
+
 class Alias:
     """Representation of an alias in the locale data.
 

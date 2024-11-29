@@ -434,8 +434,10 @@ class Locale:
             else:
                 _, territory3, script3, variant3 = parts3
                 modifier3 = None
-            fallback_id = get_locale_identifier(('und', territory3, script3, variant3, modifier3))
-            locale = cls.parse(fallback_id)
+            und_locale = get_locale_identifier(('und', territory3, script3, variant3, modifier3))
+            fallback_locale = cls.parse(und_locale)
+            localedata.build_locale_from_fallback(input_id, str(fallback_locale))
+            locale = _try_load(parts)
             if locale is not None:
                 return locale
 
