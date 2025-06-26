@@ -1046,22 +1046,22 @@ def test_unknown_language_roundtrip():
     buf = StringIO(r'''
 msgid ""
 msgstr ""
-"Language: sr_SP\n"''')
+"Language: xx_XX\n"''')
     catalog = pofile.read_po(buf)
-    assert catalog.locale_identifier == 'sr_SP'
+    assert catalog.locale_identifier == 'xx_XX'
     assert not catalog.locale
     buf = BytesIO()
     pofile.write_po(buf, catalog)
-    assert 'sr_SP' in buf.getvalue().decode()
+    assert 'xx_XX' in buf.getvalue().decode()
 
 
 def test_unknown_language_write():
-    catalog = Catalog(locale='sr_SP')
-    assert catalog.locale_identifier == 'sr_SP'
+    catalog = Catalog(locale='xx_XX')
+    assert catalog.locale_identifier == 'xx_XX'
     assert not catalog.locale
     buf = BytesIO()
     pofile.write_po(buf, catalog)
-    assert 'sr_SP' in buf.getvalue().decode()
+    assert 'xx_XX' in buf.getvalue().decode()
 
 
 def test_iterable_of_strings():

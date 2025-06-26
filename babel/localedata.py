@@ -204,7 +204,7 @@ def merge(dict1: MutableMapping[Any, Any], dict2: Mapping[Any, Any]) -> None:
             dict1[key] = val1
 
 
-def build_locale_from_fallback(locale_id: str, fallback_locale_id: str):
+def build_locale_from_fallback(locale_id: str, fallback_locale_id: str) -> None:
     """Add a new locale to localedata.
 
     This function is meant for locales currently have no data in the

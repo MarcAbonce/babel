@@ -162,10 +162,10 @@ class Locale:
     If a locale is requested for which no locale data is available, an
     `UnknownLocaleError` is raised:
 
-    >>> Locale.parse('en_XX')
+    >>> Locale.parse('xx_XX')
     Traceback (most recent call last):
         ...
-    UnknownLocaleError: unknown locale 'en_XX'
+    UnknownLocaleError: unknown locale 'xx_XX'
 
     For more information see :rfc:`3066`.
     """
