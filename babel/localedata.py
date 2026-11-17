@@ -236,7 +236,7 @@ def merge(dict1: MutableMapping[Any, Any], dict2: Mapping[Any, Any]) -> None:
 def build_locale_from_fallback(locale_id: str, fallback_locale_id: str) -> None:
     """Add a new locale to localedata.
 
-    This function is meant for locales currently have no data in the
+    This function is meant for locales that currently have no data in the
     Common Locale Data Respository (CLDR).
 
     This allows these locales to be partially supported by inheriting most
@@ -261,6 +261,7 @@ def build_locale_from_fallback(locale_id: str, fallback_locale_id: str) -> None:
     try:
         merge(locale_data, _cache[fallback_locale_id])
         _cache[locale_id] = locale_data
+        exists.cache_clear()
     finally:
         _cache_lock.release()
 

@@ -269,3 +269,13 @@ def test_reserved_locale_names():
             localedata.load(name)
         with pytest.raises(ValueError):
             Locale(name)
+
+
+def test_build_locale_from_fallback():
+    new_name = 'xx'
+    localedata.clear_caches()
+    assert not localedata.exists(new_name)
+    localedata.build_locale_from_fallback(new_name, 'en_US')
+    assert localedata.exists(new_name)
+    locale = Locale(new_name)
+    assert locale.language == new_name

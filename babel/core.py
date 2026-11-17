@@ -456,21 +456,20 @@ class Locale:
                 return locale
 
         # If locale doesn't have data but exists in likely_subtags,
-        # try to fallback to the territory's and script's likely locale
+        # try to fallback to the territory's likely locale
         likely_subtag = likely_subtag or likely_subtag2
         if likely_subtag is not None:
             parts3 = parse_locale(likely_subtag)
-            if len(parts3) == 5:
-                _, territory3, script3, variant3, modifier3 = parts3
-            else:
-                _, territory3, script3, variant3 = parts3
-                modifier3 = None
-            und_locale = get_locale_identifier(('und', territory3, script3, variant3, modifier3))
-            fallback_locale = cls.parse(und_locale)
-            localedata.build_locale_from_fallback(input_id, str(fallback_locale))
-            locale = _try_load(parts)
-            if locale is not None:
-                return locale
+            likely_territory = territory or parts3[1]
+            und_locale = get_locale_identifier(('und', likely_territory))
+            likely_fallback = get_global('likely_subtags').get(und_locale)
+            if likely_fallback:
+                fallback_language = parse_locale(likely_fallback)[0]
+                fallback_identifier = get_locale_identifier((fallback_language, likely_territory))
+                localedata.build_locale_from_fallback(input_id, fallback_identifier)
+                locale = _try_load_reducing(parts)
+                if locale is not None:
+                    return locale
 
         raise UnknownLocaleError(input_id)
 
